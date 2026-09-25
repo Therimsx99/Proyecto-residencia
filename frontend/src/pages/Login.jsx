@@ -25,17 +25,17 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-[oklch(0.16_0.015_260)] p-4">
+    <div className="min-h-dvh flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-11 h-11 rounded-lg bg-white flex items-center justify-center mb-4">
-            <span className="text-[oklch(0.16_0.015_260)] text-sm font-bold tracking-tight">BR</span>
+          <div className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center mb-4 shadow-[0_0_24px_rgba(59,130,246,0.45)]">
+            <span className="text-white text-sm font-bold tracking-tight">BR</span>
           </div>
-          <h1 className="text-lg font-semibold text-white">Bridacero ERP</h1>
-          <p className="text-sm text-white/50 mt-0.5">Inventario, compras y pedidos</p>
+          <h1 className="text-lg font-semibold text-foreground">Bridacero ERP</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Inventario, compras y pedidos</p>
         </div>
 
-        <div className="bg-card rounded-xl border border-border shadow-2xl p-6">
+        <div className="bg-card rounded-2xl border border-border shadow-2xl p-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-foreground">Correo electrónico</label>
@@ -70,7 +70,7 @@ export default function Login() {
           </form>
         </div>
 
-        <p className="text-[11px] text-white/35 mt-5 text-center">
+        <p className="text-[11px] text-muted-foreground/70 mt-5 text-center">
           Cuenta de demostración: admin@bridacero.com · admin123
         </p>
       </div>

@@ -18,11 +18,18 @@ import { api } from '../api/client';
 import { exportCsv } from '../lib/exportCsv';
 
 const currency = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
-const COLORS = ['#1e3a5f', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#7c3aed'];
+const COLORS = ['#3b82f6', '#fb923c', '#2dd4bf', '#f87171', '#a78bfa', '#4ade80', '#facc15'];
+const tooltipStyle = {
+  fontSize: 12,
+  borderRadius: 10,
+  backgroundColor: '#131a2c',
+  border: '1px solid rgba(255,255,255,0.08)',
+  color: '#e7ebf3',
+};
 
 function Card({ title, action, children }) {
   return (
-    <div className="bg-card rounded-xl border border-border p-5">
+    <div className="bg-card rounded-2xl border border-border p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-semibold text-foreground">{title}</p>
         {action}
@@ -125,8 +132,8 @@ export default function Reports() {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
             <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
             <YAxis tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
-            <Tooltip formatter={(v) => currency(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-            <Line type="monotone" dataKey="total" stroke="#1e3a5f" strokeWidth={2} dot={false} />
+            <Tooltip formatter={(v) => currency(v)} contentStyle={tooltipStyle} />
+            <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </Card>
@@ -148,8 +155,8 @@ export default function Reports() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
               <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10 }} stroke="var(--color-muted-foreground)" />
-              <Tooltip formatter={(v) => currency(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-              <Bar dataKey="total" fill="#2563eb" radius={[0, 4, 4, 0]} />
+              <Tooltip formatter={(v) => currency(v)} contentStyle={tooltipStyle} />
+              <Bar dataKey="total" fill="#3b82f6" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -172,7 +179,7 @@ export default function Reports() {
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v) => currency(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <Tooltip formatter={(v) => currency(v)} contentStyle={tooltipStyle} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -195,8 +202,8 @@ export default function Reports() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="var(--color-muted-foreground)" hide />
               <YAxis tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
-              <Tooltip formatter={(v) => currency(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-              <Bar dataKey="total" fill="#0891b2" radius={[4, 4, 0, 0]} />
+              <Tooltip formatter={(v) => currency(v)} contentStyle={tooltipStyle} />
+              <Bar dataKey="total" fill="#fb923c" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -220,8 +227,8 @@ export default function Reports() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
                 <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10 }} stroke="var(--color-muted-foreground)" />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <Bar dataKey="qty" fill="#059669" radius={[0, 4, 4, 0]} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="qty" fill="#4ade80" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'Bridacero ERP',
         short_name: 'Bridacero ERP',
         description: 'Gestión de inventario, compras y pedidos de Bridacero del Centro',
-        theme_color: '#1e3a5f',
-        background_color: '#f8fafc',
+        theme_color: '#0a0e1a',
+        background_color: '#0a0e1a',
         display: 'standalone',
         start_url: '/',
         icons: [
