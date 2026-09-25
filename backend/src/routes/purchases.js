@@ -1,6 +1,8 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const { requireAuth } = require('../middleware/auth');
+const { requireRole } = require('../middleware/roles');
+const { applyMovement } = require('../lib/stock');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -12,7 +14,7 @@ async function nextFolio(prefix, model) {
 
 router.get('/', async (req, res) => {
   const orders = await prisma.purchaseOrder.findMany({
-    include: { supplier: true, items: { include: { product: true } } },
+    include: { supplier: true, warehouse: true, items: { include: { product: true } } },
     orderBy: { createdAt: 'desc' },
   });
   res.json(orders);
@@ -21,17 +23,17 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   const order = await prisma.purchaseOrder.findUnique({
     where: { id: Number(req.params.id) },
-    include: { supplier: true, items: { include: { product: true } } },
+    include: { supplier: true, warehouse: true, items: { include: { product: true } } },
   });
   if (!order) return res.status(404).json({ error: 'Orden de compra no encontrada' });
   res.json(order);
 });
 
-// POST /api/purchases  { supplierId, expectedDate, notes, items: [{ productId, quantity, unitCost }] }
-router.post('/', async (req, res) => {
-  const { supplierId, expectedDate, notes, items } = req.body;
-  if (!supplierId || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'supplierId y al menos un item son requeridos' });
+// POST /api/purchases  { supplierId, warehouseId, expectedDate, notes, items: [{ productId, quantity, unitCost }] }
+router.post('/', requireRole('COMPRAS'), async (req, res) => {
+  const { supplierId, warehouseId, expectedDate, notes, items } = req.body;
+  if (!supplierId || !warehouseId || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'supplierId, warehouseId y al menos un item son requeridos' });
   }
 
   const total = items.reduce((sum, it) => sum + Number(it.quantity) * Number(it.unitCost), 0);
@@ -41,6 +43,7 @@ router.post('/', async (req, res) => {
     data: {
       folio,
       supplierId: Number(supplierId),
+      warehouseId: Number(warehouseId),
       expectedDate: expectedDate ? new Date(expectedDate) : null,
       notes,
       total,
@@ -52,14 +55,14 @@ router.post('/', async (req, res) => {
         })),
       },
     },
-    include: { items: { include: { product: true } }, supplier: true },
+    include: { items: { include: { product: true } }, supplier: true, warehouse: true },
   });
 
   res.status(201).json(order);
 });
 
 // POST /api/purchases/:id/receive  { items: [{ purchaseOrderItemId, receivedQty }] }
-router.post('/:id/receive', async (req, res) => {
+router.post('/:id/receive', requireRole('COMPRAS', 'ALMACEN'), async (req, res) => {
   const orderId = Number(req.params.id);
   const { items } = req.body;
   if (!Array.isArray(items) || items.length === 0) {
@@ -75,40 +78,29 @@ router.post('/:id/receive', async (req, res) => {
     return res.status(400).json({ error: `La orden ya está ${order.status.toLowerCase()}` });
   }
 
-  const ops = [];
-  for (const receipt of items) {
-    const item = order.items.find((i) => i.id === Number(receipt.purchaseOrderItemId));
-    if (!item) continue;
-    const qty = Number(receipt.receivedQty);
-    if (qty <= 0) continue;
+  await prisma.$transaction(async (tx) => {
+    for (const receipt of items) {
+      const item = order.items.find((i) => i.id === Number(receipt.purchaseOrderItemId));
+      if (!item) continue;
+      const qty = Number(receipt.receivedQty);
+      if (qty <= 0) continue;
 
-    ops.push(
-      prisma.purchaseOrderItem.update({
+      await tx.purchaseOrderItem.update({
         where: { id: item.id },
         data: { receivedQty: { increment: qty } },
-      })
-    );
-    ops.push(
-      prisma.product.update({
-        where: { id: item.productId },
-        data: { stock: { increment: qty } },
-      })
-    );
-    ops.push(
-      prisma.inventoryMovement.create({
-        data: {
-          productId: item.productId,
-          type: 'ENTRADA',
-          quantity: qty,
-          reason: `Recepción de compra ${order.folio}`,
-          reference: order.folio,
-          userId: req.user.id,
-        },
-      })
-    );
-  }
+      });
 
-  await prisma.$transaction(ops);
+      await applyMovement(tx, {
+        productId: item.productId,
+        warehouseId: order.warehouseId,
+        type: 'ENTRADA',
+        quantity: qty,
+        reason: `Recepción de compra ${order.folio}`,
+        reference: order.folio,
+        userId: req.user.id,
+      });
+    }
+  });
 
   const updatedItems = await prisma.purchaseOrderItem.findMany({ where: { purchaseOrderId: orderId } });
   const allReceived = updatedItems.every((i) => Number(i.receivedQty) >= Number(i.quantity));
@@ -118,13 +110,13 @@ router.post('/:id/receive', async (req, res) => {
   const updatedOrder = await prisma.purchaseOrder.update({
     where: { id: orderId },
     data: { status },
-    include: { items: { include: { product: true } }, supplier: true },
+    include: { items: { include: { product: true } }, supplier: true, warehouse: true },
   });
 
   res.json(updatedOrder);
 });
 
-router.post('/:id/cancel', async (req, res) => {
+router.post('/:id/cancel', requireRole('COMPRAS'), async (req, res) => {
   const order = await prisma.purchaseOrder.update({
     where: { id: Number(req.params.id) },
     data: { status: 'CANCELADA' },

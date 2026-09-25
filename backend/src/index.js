@@ -9,6 +9,10 @@ const customerRoutes = require('./routes/customers');
 const purchaseRoutes = require('./routes/purchases');
 const orderRoutes = require('./routes/orders');
 const dashboardRoutes = require('./routes/dashboard');
+const warehouseRoutes = require('./routes/warehouses');
+const quoteRoutes = require('./routes/quotes');
+const priceListRoutes = require('./routes/priceLists');
+const reportRoutes = require('./routes/reports');
 
 const app = express();
 
@@ -24,6 +28,10 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/warehouses', warehouseRoutes);
+app.use('/api/quotes', quoteRoutes);
+app.use('/api/price-lists', priceListRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);

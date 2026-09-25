@@ -1,16 +1,44 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutGrid, Boxes, ClipboardList, Truck, LogOut } from 'lucide-react';
+import {
+  LayoutGrid,
+  Boxes,
+  ClipboardList,
+  Truck,
+  FileText,
+  BarChart3,
+  Warehouse,
+  Tags,
+  LogOut,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { to: '/', label: 'Resumen', icon: LayoutGrid, end: true },
   { to: '/inventario', label: 'Inventario', icon: Boxes },
-  { to: '/compras', label: 'Compras', icon: ClipboardList },
-  { to: '/pedidos', label: 'Pedidos', icon: Truck },
+  { to: '/compras', label: 'Compras', icon: ClipboardList, roles: ['ADMIN', 'COMPRAS'] },
+  { to: '/pedidos', label: 'Pedidos', icon: Truck, roles: ['ADMIN', 'VENTAS', 'ALMACEN'] },
+  { to: '/cotizaciones', label: 'Cotizaciones', icon: FileText, roles: ['ADMIN', 'VENTAS'] },
+  { to: '/listas-precios', label: 'Listas de precios', icon: Tags, roles: ['ADMIN', 'VENTAS'] },
+  { to: '/almacenes', label: 'Almacenes', icon: Warehouse, roles: ['ADMIN', 'ALMACEN'] },
+  { to: '/reportes', label: 'Reportes', icon: BarChart3 },
 ];
+
+const mobileItems = [
+  { to: '/', label: 'Resumen', icon: LayoutGrid, end: true },
+  { to: '/inventario', label: 'Inventario', icon: Boxes },
+  { to: '/compras', label: 'Compras', icon: ClipboardList, roles: ['ADMIN', 'COMPRAS'] },
+  { to: '/pedidos', label: 'Pedidos', icon: Truck, roles: ['ADMIN', 'VENTAS', 'ALMACEN'] },
+  { to: '/reportes', label: 'Reportes', icon: BarChart3 },
+];
+
+function visibleFor(items, role) {
+  return items.filter((item) => !item.roles || item.roles.includes(role));
+}
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const sidebarItems = visibleFor(navItems, user?.role);
+  const bottomItems = visibleFor(mobileItems, user?.role);
 
   return (
     <div className="min-h-dvh flex bg-background">
@@ -25,8 +53,8 @@ export default function Layout() {
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
-          {navItems.map(({ to, label, icon: Icon, end }) => (
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
+          {sidebarItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -83,14 +111,14 @@ export default function Layout() {
         </main>
       </div>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around py-1 pb-[calc(env(safe-area-inset-bottom,0px)+4px)] z-10">
-        {navItems.map(({ to, label, icon: Icon, end }) => (
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex overflow-x-auto py-1 pb-[calc(env(safe-area-inset-bottom,0px)+4px)] z-10">
+        {bottomItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-md text-[10px] font-medium transition-colors ${
+              `flex flex-col items-center gap-0.5 px-3.5 py-1.5 rounded-md text-[10px] font-medium transition-colors shrink-0 ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`
             }

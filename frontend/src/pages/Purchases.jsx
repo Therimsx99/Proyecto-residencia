@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Plus, Package } from 'lucide-react';
 import { api } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
 
 const currency = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
 export default function Purchases() {
+  const { user } = useAuth();
+  const canManage = user?.role === 'ADMIN' || user?.role === 'COMPRAS';
+  const canReceive = canManage || user?.role === 'ALMACEN';
+
   const [orders, setOrders] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -20,14 +26,16 @@ export default function Purchases() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [ordersData, suppliersData, productsData] = await Promise.all([
+      const [ordersData, suppliersData, productsData, warehousesData] = await Promise.all([
         api.get('/purchases'),
         api.get('/suppliers'),
         api.get('/products'),
+        api.get('/warehouses'),
       ]);
       setOrders(ordersData);
       setSuppliers(suppliersData);
       setProducts(productsData);
+      setWarehouses(warehousesData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -46,15 +54,17 @@ export default function Purchases() {
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Compras</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Órdenes de compra a proveedores</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowSupplierForm(true)} className="bg-secondary text-secondary-foreground text-sm font-medium px-3.5 py-2 rounded-md hover:bg-secondary/70 transition">
-            Nuevo proveedor
-          </button>
-          <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-medium px-3.5 py-2 rounded-md hover:opacity-90 transition">
-            <Plus size={15} />
-            Orden de compra
-          </button>
-        </div>
+        {canManage && (
+          <div className="flex gap-2">
+            <button onClick={() => setShowSupplierForm(true)} className="bg-secondary text-secondary-foreground text-sm font-medium px-3.5 py-2 rounded-md hover:bg-secondary/70 transition">
+              Nuevo proveedor
+            </button>
+            <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-medium px-3.5 py-2 rounded-md hover:opacity-90 transition">
+              <Plus size={15} />
+              Orden de compra
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
@@ -70,6 +80,7 @@ export default function Purchases() {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Pedida: {new Date(o.orderDate).toLocaleDateString('es-MX')}
                     {o.expectedDate && ` · Esperada: ${new Date(o.expectedDate).toLocaleDateString('es-MX')}`}
+                    {' · '}Recibe en: {o.warehouse.name}
                   </p>
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -89,21 +100,25 @@ export default function Purchases() {
 
               {(o.status === 'PENDIENTE' || o.status === 'PARCIAL') && (
                 <div className="mt-4 flex gap-3">
-                  <button
-                    onClick={() => setReceivingOrder(o)}
-                    className="text-xs font-medium bg-success text-success-foreground px-3 py-1.5 rounded-md hover:opacity-90 transition"
-                  >
-                    Recibir mercancía
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await api.post(`/purchases/${o.id}/cancel`);
-                      loadAll();
-                    }}
-                    className="text-xs font-medium text-destructive hover:underline"
-                  >
-                    Cancelar orden
-                  </button>
+                  {canReceive && (
+                    <button
+                      onClick={() => setReceivingOrder(o)}
+                      className="text-xs font-medium bg-success text-success-foreground px-3 py-1.5 rounded-md hover:opacity-90 transition"
+                    >
+                      Recibir mercancía
+                    </button>
+                  )}
+                  {canManage && (
+                    <button
+                      onClick={async () => {
+                        await api.post(`/purchases/${o.id}/cancel`);
+                        loadAll();
+                      }}
+                      className="text-xs font-medium text-destructive hover:underline"
+                    >
+                      Cancelar orden
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -121,6 +136,7 @@ export default function Purchases() {
         <PurchaseOrderForm
           suppliers={suppliers}
           products={products}
+          warehouses={warehouses}
           onClose={() => setShowForm(false)}
           onCreated={() => {
             setShowForm(false);
@@ -185,8 +201,9 @@ function SupplierForm({ onClose, onCreated }) {
   );
 }
 
-function PurchaseOrderForm({ suppliers, products, onClose, onCreated }) {
+function PurchaseOrderForm({ suppliers, products, warehouses, onClose, onCreated }) {
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id || '');
+  const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || '');
   const [expectedDate, setExpectedDate] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState([{ productId: products[0]?.id || '', quantity: '', unitCost: '' }]);
@@ -208,8 +225,9 @@ function PurchaseOrderForm({ suppliers, products, onClose, onCreated }) {
     e.preventDefault();
     setError('');
     if (!supplierId) return setError('Selecciona un proveedor');
+    if (!warehouseId) return setError('Selecciona un almacén de recepción');
     try {
-      await api.post('/purchases', { supplierId, expectedDate: expectedDate || null, notes, items });
+      await api.post('/purchases', { supplierId, warehouseId, expectedDate: expectedDate || null, notes, items });
       onCreated();
     } catch (err) {
       setError(err.message);
@@ -227,6 +245,14 @@ function PurchaseOrderForm({ suppliers, products, onClose, onCreated }) {
             <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="input">
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-foreground">Almacén de recepción</span>
+            <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="input">
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
               ))}
             </select>
           </label>

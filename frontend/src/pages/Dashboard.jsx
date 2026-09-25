@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Boxes, AlertTriangle, Wallet, ClipboardList, Truck, Users, Building2 } from 'lucide-react';
+import { Boxes, AlertTriangle, Wallet, ClipboardList, Truck, Users, Building2, Warehouse, FileText } from 'lucide-react';
 import { api } from '../api/client';
 
 const currency = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
@@ -55,6 +55,8 @@ export default function Dashboard() {
         <StatCard label="Pedidos abiertos" value={summary.openSalesOrders} icon={Truck} />
         <StatCard label="Proveedores" value={summary.totalSuppliers} icon={Building2} />
         <StatCard label="Clientes" value={summary.totalCustomers} icon={Users} />
+        <StatCard label="Almacenes" value={summary.totalWarehouses} icon={Warehouse} />
+        <StatCard label="Cotizaciones abiertas" value={summary.openQuotes} icon={FileText} />
       </div>
 
       {summary.lowStockCount > 0 && (

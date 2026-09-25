@@ -7,6 +7,10 @@ import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import Purchases from './pages/Purchases';
 import Orders from './pages/Orders';
+import Quotes from './pages/Quotes';
+import PriceLists from './pages/PriceLists';
+import Warehouses from './pages/Warehouses';
+import Reports from './pages/Reports';
 
 export default function App() {
   return (
@@ -25,6 +29,10 @@ export default function App() {
             <Route path="/inventario" element={<Inventory />} />
             <Route path="/compras" element={<Purchases />} />
             <Route path="/pedidos" element={<Orders />} />
+            <Route path="/cotizaciones" element={<Quotes />} />
+            <Route path="/listas-precios" element={<PriceLists />} />
+            <Route path="/almacenes" element={<Warehouses />} />
+            <Route path="/reportes" element={<Reports />} />
           </Route>
         </Routes>
       </BrowserRouter>

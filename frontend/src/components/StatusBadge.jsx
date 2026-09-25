@@ -6,6 +6,11 @@ const STYLES = {
   SURTIDO: 'bg-success/12 text-success border-success/20',
   CANCELADA: 'bg-destructive/10 text-destructive border-destructive/20',
   CANCELADO: 'bg-destructive/10 text-destructive border-destructive/20',
+  BORRADOR: 'bg-secondary text-secondary-foreground border-border',
+  ENVIADA: 'bg-warning/15 text-warning border-warning/20',
+  ACEPTADA: 'bg-success/12 text-success border-success/20',
+  RECHAZADA: 'bg-destructive/10 text-destructive border-destructive/20',
+  CONVERTIDA: 'bg-success/12 text-success border-success/20',
 };
 
 const LABELS = {
@@ -16,6 +21,11 @@ const LABELS = {
   SURTIDO: 'Surtido',
   CANCELADA: 'Cancelada',
   CANCELADO: 'Cancelado',
+  BORRADOR: 'Borrador',
+  ENVIADA: 'Enviada',
+  ACEPTADA: 'Aceptada',
+  RECHAZADA: 'Rechazada',
+  CONVERTIDA: 'Convertida a pedido',
 };
 
 export default function StatusBadge({ status }) {

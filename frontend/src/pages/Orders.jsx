@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Plus, PackageCheck } from 'lucide-react';
 import { api } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
 
 const currency = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
 export default function Orders() {
+  const { user } = useAuth();
+  const canManage = user?.role === 'ADMIN' || user?.role === 'VENTAS';
+  const canFulfill = canManage || user?.role === 'ALMACEN';
+
   const [orders, setOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -20,14 +26,16 @@ export default function Orders() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [ordersData, customersData, productsData] = await Promise.all([
+      const [ordersData, customersData, productsData, warehousesData] = await Promise.all([
         api.get('/orders'),
         api.get('/customers'),
         api.get('/products'),
+        api.get('/warehouses'),
       ]);
       setOrders(ordersData);
       setCustomers(customersData);
       setProducts(productsData);
+      setWarehouses(warehousesData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -46,15 +54,17 @@ export default function Orders() {
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Pedidos</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Pedidos de venta a clientes</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowCustomerForm(true)} className="bg-secondary text-secondary-foreground text-sm font-medium px-3.5 py-2 rounded-md hover:bg-secondary/70 transition">
-            Nuevo cliente
-          </button>
-          <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-medium px-3.5 py-2 rounded-md hover:opacity-90 transition">
-            <Plus size={15} />
-            Pedido
-          </button>
-        </div>
+        {canManage && (
+          <div className="flex gap-2">
+            <button onClick={() => setShowCustomerForm(true)} className="bg-secondary text-secondary-foreground text-sm font-medium px-3.5 py-2 rounded-md hover:bg-secondary/70 transition">
+              Nuevo cliente
+            </button>
+            <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-medium px-3.5 py-2 rounded-md hover:opacity-90 transition">
+              <Plus size={15} />
+              Pedido
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
@@ -70,6 +80,8 @@ export default function Orders() {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Pedido: {new Date(o.orderDate).toLocaleDateString('es-MX')}
                     {o.deliveryDate && ` · Entrega: ${new Date(o.deliveryDate).toLocaleDateString('es-MX')}`}
+                    {' · '}Surte de: {o.warehouse.name}
+                    {o.quote && ` · Desde ${o.quote.folio}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -89,21 +101,25 @@ export default function Orders() {
 
               {(o.status === 'PENDIENTE' || o.status === 'SURTIDO_PARCIAL') && (
                 <div className="mt-4 flex gap-3">
-                  <button
-                    onClick={() => setFulfillingOrder(o)}
-                    className="text-xs font-medium bg-success text-success-foreground px-3 py-1.5 rounded-md hover:opacity-90 transition"
-                  >
-                    Surtir pedido
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await api.post(`/orders/${o.id}/cancel`);
-                      loadAll();
-                    }}
-                    className="text-xs font-medium text-destructive hover:underline"
-                  >
-                    Cancelar pedido
-                  </button>
+                  {canFulfill && (
+                    <button
+                      onClick={() => setFulfillingOrder(o)}
+                      className="text-xs font-medium bg-success text-success-foreground px-3 py-1.5 rounded-md hover:opacity-90 transition"
+                    >
+                      Surtir pedido
+                    </button>
+                  )}
+                  {canManage && (
+                    <button
+                      onClick={async () => {
+                        await api.post(`/orders/${o.id}/cancel`);
+                        loadAll();
+                      }}
+                      className="text-xs font-medium text-destructive hover:underline"
+                    >
+                      Cancelar pedido
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -121,6 +137,7 @@ export default function Orders() {
         <OrderForm
           customers={customers}
           products={products}
+          warehouses={warehouses}
           onClose={() => setShowForm(false)}
           onCreated={() => {
             setShowForm(false);
@@ -185,19 +202,36 @@ function CustomerForm({ onClose, onCreated }) {
   );
 }
 
-function OrderForm({ customers, products, onClose, onCreated }) {
+function OrderForm({ customers, products, warehouses, onClose, onCreated }) {
   const [customerId, setCustomerId] = useState(customers[0]?.id || '');
+  const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || '');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState([{ productId: products[0]?.id || '', quantity: '', unitPrice: '' }]);
   const [error, setError] = useState('');
 
+  const selectedCustomer = customers.find((c) => String(c.id) === String(customerId));
+
+  function priceFor(productId) {
+    const product = products.find((p) => String(p.id) === String(productId));
+    if (!product) return '';
+    if (selectedCustomer?.priceList) {
+      const override = selectedCustomer.priceList.items?.find((it) => String(it.productId) === String(productId));
+      if (override) return override.price;
+    }
+    return product.unitPrice;
+  }
+
   function updateItem(idx, patch) {
     setItems(items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   }
 
+  function handleProductChange(idx, productId) {
+    updateItem(idx, { productId, unitPrice: priceFor(productId) });
+  }
+
   function addItem() {
-    setItems([...items, { productId: products[0]?.id || '', quantity: '', unitPrice: '' }]);
+    setItems([...items, { productId: products[0]?.id || '', quantity: '', unitPrice: priceFor(products[0]?.id) }]);
   }
 
   function removeItem(idx) {
@@ -208,8 +242,9 @@ function OrderForm({ customers, products, onClose, onCreated }) {
     e.preventDefault();
     setError('');
     if (!customerId) return setError('Selecciona un cliente');
+    if (!warehouseId) return setError('Selecciona un almacén de surtido');
     try {
-      await api.post('/orders', { customerId, deliveryDate: deliveryDate || null, notes, items });
+      await api.post('/orders', { customerId, warehouseId, deliveryDate: deliveryDate || null, notes, items });
       onCreated();
     } catch (err) {
       setError(err.message);
@@ -226,7 +261,15 @@ function OrderForm({ customers, products, onClose, onCreated }) {
             <span className="text-xs font-medium text-foreground">Cliente</span>
             <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="input">
               {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>{c.name}{c.priceList ? ` (${c.priceList.name})` : ''}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-foreground">Almacén de surtido</span>
+            <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="input">
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
               ))}
             </select>
           </label>
@@ -239,7 +282,7 @@ function OrderForm({ customers, products, onClose, onCreated }) {
             <span className="text-xs font-medium text-foreground">Productos</span>
             {items.map((it, idx) => (
               <div key={idx} className="flex gap-2 items-center">
-                <select value={it.productId} onChange={(e) => updateItem(idx, { productId: e.target.value })} className="input flex-1">
+                <select value={it.productId} onChange={(e) => handleProductChange(idx, e.target.value)} className="input flex-1">
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
