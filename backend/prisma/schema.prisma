@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  ALMACEN
+  COMPRAS
+  VENTAS
+}
+
+enum MovementType {
+  ENTRADA
+  SALIDA
+  AJUSTE
+}
+
+enum PurchaseStatus {
+  PENDIENTE
+  PARCIAL
+  RECIBIDA
+  CANCELADA
+}
+
+enum SalesStatus {
+  PENDIENTE
+  SURTIDO_PARCIAL
+  SURTIDO
+  CANCELADO
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(ALMACEN)
+  createdAt    DateTime  @default(now())
+  movements    InventoryMovement[]
+
+  @@map("users")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  sku         String   @unique
+  name        String
+  description String?
+  category    String
+  unit        String   @default("pieza")
+  stock       Decimal  @default(0) @db.Decimal(12, 2)
+  minStock    Decimal  @default(0) @db.Decimal(12, 2)
+  unitCost    Decimal  @default(0) @db.Decimal(12, 2)
+  unitPrice   Decimal  @default(0) @db.Decimal(12, 2)
+  location    String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  movements         InventoryMovement[]
+  purchaseItems     PurchaseOrderItem[]
+  salesItems        SalesOrderItem[]
+
+  @@map("products")
+}
+
+model InventoryMovement {
+  id        Int          @id @default(autoincrement())
+  product   Product      @relation(fields: [productId], references: [id])
+  productId Int
+  type      MovementType
+  quantity  Decimal      @db.Decimal(12, 2)
+  reason    String
+  reference String?
+  user      User?        @relation(fields: [userId], references: [id])
+  userId    Int?
+  createdAt DateTime     @default(now())
+
+  @@map("inventory_movements")
+}
+
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  createdAt   DateTime @default(now())
+
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id           Int            @id @default(autoincrement())
+  folio        String         @unique
+  supplier     Supplier       @relation(fields: [supplierId], references: [id])
+  supplierId   Int
+  status       PurchaseStatus @default(PENDIENTE)
+  orderDate    DateTime       @default(now())
+  expectedDate DateTime?
+  total        Decimal        @default(0) @db.Decimal(12, 2)
+  notes        String?
+  createdAt    DateTime       @default(now())
+
+  items PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              Int           @id @default(autoincrement())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrderId Int
+  product         Product       @relation(fields: [productId], references: [id])
+  productId       Int
+  quantity        Decimal       @db.Decimal(12, 2)
+  unitCost        Decimal       @db.Decimal(12, 2)
+  receivedQty     Decimal       @default(0) @db.Decimal(12, 2)
+
+  @@map("purchase_order_items")
+}
+
+model Customer {
+  id          Int      @id @default(autoincrement())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  createdAt   DateTime @default(now())
+
+  salesOrders SalesOrder[]
+
+  @@map("customers")
+}
+
+model SalesOrder {
+  id           Int         @id @default(autoincrement())
+  folio        String      @unique
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  customerId   Int
+  status       SalesStatus @default(PENDIENTE)
+  orderDate    DateTime    @default(now())
+  deliveryDate DateTime?
+  total        Decimal     @default(0) @db.Decimal(12, 2)
+  notes        String?
+  createdAt    DateTime    @default(now())
+
+  items SalesOrderItem[]
+
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id            Int        @id @default(autoincrement())
+  salesOrder    SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  salesOrderId  Int
+  product       Product    @relation(fields: [productId], references: [id])
+  productId     Int
+  quantity      Decimal    @db.Decimal(12, 2)
+  unitPrice     Decimal    @db.Decimal(12, 2)
+  deliveredQty  Decimal    @default(0) @db.Decimal(12, 2)
+
+  @@map("sales_order_items")
+}
